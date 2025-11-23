@@ -1,10 +1,15 @@
 # 使用官方PHP 7.4镜像并带Apache服务器
 FROM php:7.4-apache
 
-# 安装系统依赖和Composer
-RUN apt-get update && \
-    apt-get install -y git unzip && \
-    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# 1. 配置国内Debian软件源并安装依赖
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+    sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y git unzip
+
+# 2. 使用国内镜像安装Composer
+RUN curl -sS https://install.phpcomposer.com/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
+    composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
 
 # 安装PHP扩展
 RUN docker-php-ext-install pdo pdo_mysql mysqli
@@ -12,8 +17,8 @@ RUN docker-php-ext-install pdo pdo_mysql mysqli
 # 将代码复制到容器内的网站根目录
 COPY . /var/www/html/
 
-# 安装Composer依赖（关键步骤！）
-RUN cd /var/www/html && composer install --no-dev
+# 安装Composer依赖（使用国内镜像，速度更快）
+RUN cd /var/www/html && composer install --no-dev -vvv
 
 # 设置正确的文件权限
 RUN chown -R www-data:www-data /var/www/html/ && \
