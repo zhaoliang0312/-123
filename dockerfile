@@ -17,14 +17,18 @@ RUN docker-php-ext-install pdo pdo_mysql mysqli
 # 将代码复制到容器内的网站根目录
 COPY . /var/www/html/
 
-# 安装Composer依赖（使用国内镜像，速度更快）
+# 安装Composer依赖
 RUN cd /var/www/html && composer install --no-dev
 
-# 设置正确的文件权限（修正后的版本）
+# 设置正确的文件权限（修正版：只针对实际存在的目录）
 RUN chown -R www-data:www-data /var/www/html/ && \
     find /var/www/html/ -type d -exec chmod 755 {} \; && \
     find /var/www/html/ -type f -exec chmod 644 {} \; && \
-    chmod -R 777 /var/www/html/runtime/ /var/www/html/public/runtime/ /var/www/html/app/runtime/ && \
+    # 只设置实际存在的目录权限
+    (test -d /var/www/html/runtime && chmod -R 777 /var/www/html/runtime || true) && \
+    (test -d /var/www/html/public/runtime && chmod -R 777 /var/www/html/public/runtime || true) && \
+    # 移除不存在的app/runtime目录
+    # 设置.env文件权限（如果存在）
     (test -f /var/www/html/.env && chmod 666 /var/www/html/.env || true) && \
     (test -f /var/www/html/public/.env && chmod 666 /var/www/html/public/.env || true)
 
