@@ -14,36 +14,22 @@ RUN curl -sS https://install.phpcomposer.com/installer | php -- --install-dir=/u
 # 安装PHP扩展
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
+# 关键修复：修改Apache端口为8080（非特权端口）
+RUN sed -i 's/80/8080/g' /etc/apache2/ports.conf && \
+    sed -i 's/80/8080/g' /etc/apache2/sites-available/*.conf
+
 # 复制代码到容器
 COPY . /var/www/html/
 
 # 安装Composer依赖
 RUN cd /var/www/html && composer install --no-dev
 
-# ==================== 终极权限解决方案 ====================
-# 1. 确保使用正确的用户
-USER root
+# 设置文件权限
+RUN chown -R www-data:www-data /var/www/html/ && \
+    find /var/www/html/ -type d -exec chmod 755 {} \; && \
+    find /var/www/html/ -type f -exec chmod 644 {} \; && \
+    find /var/www/html/ -name "runtime" -type d -exec chmod -R 777 {} \; 2>/dev/null || true && \
+    find /var/www/html/ -name ".env" -type f -exec chmod 666 {} \; 2>/dev/null || true
 
-# 2. 设置整个目录的所有权给Apache用户
-RUN chown -R www-data:www-data /var/www/html/
-
-# 3. 设置目录和文件的基本权限
-RUN find /var/www/html/ -type d -exec chmod 755 {} \; && \
-    find /var/www/html/ -type f -exec chmod 644 {} \;
-
-# 4. 为所有可能的runtime目录设置完全权限（覆盖所有情况）
-RUN find /var/www/html/ -name "runtime" -type d -exec chmod -R 777 {} \; 2>/dev/null || true && \
-    find /var/www/html/ -path "*/runtime" -type d -exec chmod -R 777 {} \; 2>/dev/null || true
-
-# 5. 为所有可能的.env文件设置写权限
-RUN find /var/www/html/ -name ".env" -type f -exec chmod 666 {} \; 2>/dev/null || true
-
-# 6. 为可能需要的上传目录设置权限
-RUN find /var/www/html/ -name "uploads" -type d -exec chmod -R 777 {} \; 2>/dev/null || true && \
-    find /var/www/html/ -name "cache" -type d -exec chmod -R 777 {} \; 2>/dev/null || true
-
-# 7. 切换到Apache用户运行
-USER www-data
-
-# 暴露端口
-EXPOSE 80
+# 暴露8080端口（关键修改！）
+EXPOSE 8080
