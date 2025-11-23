@@ -4,11 +4,14 @@ FROM php:7.4-apache
 # 安装PHP连接MySQL所必需的扩展
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
-# 将当前目录下的所有文件复制到容器内的网站根目录
+# 复制代码
 COPY . /var/www/html/
 
-# 设置正确的文件权限（确保PHP可写入缓存等目录）
-RUN chown -R www-data:www-data /var/www/html/ && chmod -R 755 /var/www/html/
+# 设置正确的所有权和权限（关键步骤）
+RUN chown -R www-data:www-data /var/www/html/ && \
+    find /var/www/html/ -type d -exec chmod 755 {} \; && \
+    find /var/www/html/ -type f -exec chmod 644 {} \; && \
+    chmod 755 /var/www/html/install.php  # 确保安装文件有执行权限
 
 # 暴露Apache服务器的默认端口
 EXPOSE 80
