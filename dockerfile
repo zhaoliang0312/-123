@@ -17,13 +17,14 @@ RUN docker-php-ext-install pdo pdo_mysql mysqli
 # 将代码复制到容器内的网站根目录
 COPY . /var/www/html/
 
-# 设置正确的文件权限（关键修正部分）
+# 设置正确的文件权限（修正版）
 RUN chown -R www-data:www-data /var/www/html/ && \
     find /var/www/html/ -type d -exec chmod 755 {} \; && \
     find /var/www/html/ -type f -exec chmod 644 {} \; && \
-    # 特别设置runtime目录和.env文件的写权限
-    chmod -R 777 /var/www/html/runtime/ && \
-    chmod 666 /var/www/html/.env 2>/dev/null || true
-
+    # 特别设置关键目录的写权限
+    chmod -R 777 /var/www/html/runtime/ /var/www/html/public/runtime/ /var/www/html/app/runtime/ && \
+    # 处理.env文件（如果存在则设置权限，不存在则忽略）
+    (test -f /var/www/html/.env && chmod 666 /var/www/html/.env || true) && \
+    (test -f /var/www/html/public/.env && chmod 666 /var/www/html/public/.env || true)
 # 暴露Apache服务器的默认端口
 EXPOSE 80
