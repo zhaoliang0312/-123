@@ -17,14 +17,13 @@ RUN docker-php-ext-install pdo pdo_mysql mysqli
 # 将代码复制到容器内的网站根目录
 COPY . /var/www/html/
 
-# 安装Composer依赖（使用国内镜像，速度更快）
-RUN cd /var/www/html && composer install --no-dev -vvv
-
-# 设置正确的文件权限
+# 设置正确的文件权限（关键修正部分）
 RUN chown -R www-data:www-data /var/www/html/ && \
     find /var/www/html/ -type d -exec chmod 755 {} \; && \
     find /var/www/html/ -type f -exec chmod 644 {} \; && \
-    chmod -R 777 /var/www/html/public/ /var/www/html/runtime/
+    # 特别设置runtime目录和.env文件的写权限
+    chmod -R 777 /var/www/html/runtime/ && \
+    chmod 666 /var/www/html/.env 2>/dev/null || true
 
 # 暴露Apache服务器的默认端口
 EXPOSE 80
