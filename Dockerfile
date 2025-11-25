@@ -8,11 +8,15 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
     sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
     apt-get update && \
-    apt-get install -y git unzip
+    apt-get install -y git unzip wget
 
-# 使用国内镜像安装Composer
-RUN curl -sS https://install.phpcomposer.com/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
-    composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
+# ========== 修正：使用更稳定的Composer安装方法 ==========
+# 方法1：直接下载稳定版Composer（避免签名验证问题）
+RUN curl -sS https://getcomposer.org/composer-stable.phar -o /usr/local/bin/composer && \
+    chmod a+x /usr/local/bin/composer
+
+# 配置Composer使用国内镜像
+RUN composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
 
 # 安装PHP扩展
 RUN docker-php-ext-install pdo pdo_mysql mysqli
@@ -35,7 +39,7 @@ RUN find /var/www/html/ -type d -exec chmod 755 {} \; && \
 RUN find /var/www/html/ -name "runtime" -type d -exec chmod -R 777 {} \; 2>/dev/null || true && \
     find /var/www/html/ -name ".env" -type f -exec chmod 666 {} \; 2>/dev/null || true
 
-# 创建健康检查文件（解决健康检查失败）
+# 创建健康检查文件
 RUN echo "<?php header('Content-Type: text/plain'); echo 'OK'; ?>" > /var/www/html/health.php && \
     chmod 644 /var/www/html/health.php
 
