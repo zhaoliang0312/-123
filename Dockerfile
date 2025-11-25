@@ -1,47 +1,36 @@
-# 使用官方PHP 7.4镜像并带Apache服务器
 FROM php:7.4-apache
 
-# 配置Apache服务器名称，避免启动警告
+# 设置Apache服务器名
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# 配置国内软件源加速安装
-RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
-    sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y git unzip wget
-
-# ========== 修正：使用更稳定的Composer安装方法 ==========
-# 方法1：直接下载稳定版Composer（避免签名验证问题）
-RUN curl -sS https://getcomposer.org/composer-stable.phar -o /usr/local/bin/composer && \
-    chmod a+x /usr/local/bin/composer
-
-# 配置Composer使用国内镜像
-RUN composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
+# 安装基础工具
+RUN apt-get update && apt-get install -y git unzip
 
 # 安装PHP扩展
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
-# 复制代码到容器
+# 复制代码
 COPY . /var/www/html/
 
-# 安装Composer依赖
-RUN cd /var/www/html && composer install --no-dev
-
-# ==================== 强化的权限设置 ====================
-# 设置文件所有权
+# ==================== 强化的权限解决方案 ====================
+# 1. 递归设置整个目录的所有权
 RUN chown -R www-data:www-data /var/www/html/
 
-# 设置基本权限
+# 2. 设置基础权限
 RUN find /var/www/html/ -type d -exec chmod 755 {} \; && \
     find /var/www/html/ -type f -exec chmod 644 {} \;
 
-# 强制设置关键目录的可写权限
+# 3. 为所有可能的runtime目录设置完全权限
 RUN find /var/www/html/ -name "runtime" -type d -exec chmod -R 777 {} \; 2>/dev/null || true && \
-    find /var/www/html/ -name ".env" -type f -exec chmod 666 {} \; 2>/dev/null || true
+    find /var/www/html/ -path "*/runtime" -type d -exec chmod -R 777 {} \; 2>/dev/null || true
 
-# 创建健康检查文件
-RUN echo "<?php header('Content-Type: text/plain'); echo 'OK'; ?>" > /var/www/html/health.php && \
-    chmod 644 /var/www/html/health.php
+# 4. 为.env文件设置写权限
+RUN find /var/www/html/ -name ".env" -type f -exec chmod 666 {} \; 2>/dev/null || true
 
-# 暴露端口
+# 5. 确保Apache用户可以写入所有目录
+RUN usermod -a -G www-data root
+
+# 健康检查端点
+RUN echo "<?php header('Content-Type: text/plain'); echo 'OK'; ?>" > /var/www/html/health.php
+
 EXPOSE 80
